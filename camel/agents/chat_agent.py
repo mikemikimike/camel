@@ -2960,12 +2960,25 @@ class ChatAgent(BaseAgent):
 
         # Execute with timeout if configured
         if self.step_timeout is not None:
+
+            def run_step_with_agent_context() -> ChatAgentResponse:
+                from camel.utils.agent_context import set_current_agent_id
+
+                set_current_agent_id(self.agent_id)
+                try:
+                    from camel.utils.langfuse import (
+                        set_current_agent_session_id,
+                    )
+
+                    set_current_agent_session_id(self.agent_id)
+                except ImportError:
+                    pass
+                return self._step_impl(input_message, response_format)
+
             with concurrent.futures.ThreadPoolExecutor(
                 max_workers=1
             ) as executor:
-                future = executor.submit(
-                    self._step_impl, input_message, response_format
-                )
+                future = executor.submit(run_step_with_agent_context)
                 try:
                     return future.result(timeout=self.step_timeout)
                 except concurrent.futures.TimeoutError:

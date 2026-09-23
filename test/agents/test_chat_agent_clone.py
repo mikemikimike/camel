@@ -104,6 +104,35 @@ def test_reset_clears_response_chain_state_for_reset_agent(model_class):
     assert other_key in model._responses_last_message_count_by_session
 
 
+@pytest.mark.parametrize("model_class", [OpenAIModel, OpenAICompatibleModel])
+def test_step_timeout_uses_agent_session_for_response_chain(
+    monkeypatch, model_class
+):
+    model = model_class(
+        model_type=ModelType.GPT_4O_MINI,
+        api_mode="responses",
+        api_key="test-key",
+    )
+    agent = ChatAgent(model=model, step_timeout=1)
+    captured = {}
+
+    def fake_step_impl(*args, **kwargs):
+        captured["session_key"] = model._get_response_chain_session_key()
+        model._save_response_chain_state(
+            captured["session_key"], "resp_agent", 3
+        )
+
+    monkeypatch.setattr(agent, "_step_impl", fake_step_impl)
+    agent.step("hello")
+
+    assert captured["session_key"] == agent.agent_id
+    agent.reset()
+    assert (
+        agent.agent_id not in model._responses_previous_response_id_by_session
+    )
+    assert agent.agent_id not in model._responses_last_message_count_by_session
+
+
 def test_step_sets_agent_session_before_streaming(monkeypatch):
     model = OpenAIModel(
         model_type=ModelType.GPT_4O_MINI,
