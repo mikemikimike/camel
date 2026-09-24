@@ -171,7 +171,7 @@ def test_sync_stream_step_sets_agent_session_id(model_class):
         set_current_agent_session_id,
     )
 
-    set_current_agent_session_id(None)  # type: ignore[arg-type]
+    set_current_agent_session_id(None)
     agent.step("hello")
 
     assert get_current_agent_session_id() == agent.agent_id
